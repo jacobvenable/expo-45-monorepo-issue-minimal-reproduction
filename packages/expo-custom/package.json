@@ -17,9 +17,8 @@
   "jest": {
     "preset": "expo-module-scripts"
   },
-  "dependencies": {
-  },
   "devDependencies": {
+    "apollo-server-testing": "2.25.3",
     "expo-module-scripts": "^2.0.0"
   }
 }

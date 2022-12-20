@@ -30,6 +30,11 @@ The first step is setting the following property, [per the recommended setup](ht
 config.resolver.disableHierarchicalLookup = true;
 ```
 
+Next, we added two packages with conflicting transitive dependences:
+
+- `apollo-server-testing@2.25.3` in `packages/expo-custom`
+- `@apollo/client@3.6.4` in `apps/mobile`
+
 This causes the following error upon build:
 
 ```

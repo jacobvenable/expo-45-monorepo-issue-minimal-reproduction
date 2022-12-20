@@ -15,7 +15,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-// uncomment the following line to fix the current build error
-// config.resolver.disableHierarchicalLookup = true;
+// remove/comment the following line to fix the current build error
+config.resolver.disableHierarchicalLookup = true;
 
 module.exports = config;

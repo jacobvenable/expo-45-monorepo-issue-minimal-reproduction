@@ -1,47 +1,103 @@
-# Expo Yarn Workspaces Example
+# Expo Yarn Workspaces Minimal Reproduction
 
-<p>
-  <!-- iOS -->
-  <a href="https://itunes.apple.com/app/apple-store/id982107779">
-    <img alt="Supports Expo iOS" longdesc="Supports Expo iOS" src="https://img.shields.io/badge/iOS-4630EB.svg?style=flat-square&logo=APPLE&labelColor=999999&logoColor=fff" />
-  </a>
-  <!-- Android -->
-  <a href="https://play.google.com/store/apps/details?id=host.exp.exponent&referrer=blankexample">
-    <img alt="Supports Expo Android" longdesc="Supports Expo Android" src="https://img.shields.io/badge/Android-4630EB.svg?style=flat-square&logo=ANDROID&labelColor=A4C639&logoColor=fff" />
-  </a>
-  <!-- Web -->
-  <a href="https://docs.expo.dev/workflow/web/">
-    <img alt="Supports Expo Web" longdesc="Supports Expo Web" src="https://img.shields.io/badge/web-4630EB.svg?style=flat-square&logo=GOOGLE-CHROME&labelColor=4285F4&logoColor=fff" />
-  </a>
-</p>
+This repo creates a minimal reproduction of a problem we're having with building the native version of our Expo application, after an Expo 45 upgrade.
 
-Demonstrates the use of a Yarn Workspace Monorepo with Expo.
-This example installs a monorepo with an application using a separate custom package.
+Our yarn workspaces v1 monorepo contains:
 
-## 🚀 How to use
+- multiple Expo applications
+- multiple front-end packages
+- multiple back-end micro services
 
-- Create a new monorepo with `npx create-react-native-app --template with-yarn-workspaces`.
-- Run `yarn watch-packages` to build and watch the packages.
-- Run `yarn start-app` to start the app.
-- Edit the code in **packages/expo-custom/src** and watch it live-reload in the app!
+This repo was created via:
+`npx create-react-native-app --template with-yarn-workspaces`
 
-### 📁 File Structure
+Which is built from this template:
+https://github.com/expo/examples/tree/master/with-yarn-workspaces
+
+We downgraded the app in the `apps/mobile` folder to use Expo 45 since that's the version we're currently on.
+
+## How to use this Repo
+
+_Since there are possibly multiple layers to the problem, we'll keep this section of the README up-to-date with the most current problem._
+
+### Current State
+
+Since the problem seems related to metro configuration, we modified this repo's metro configuration to be closer to what we have within our monorepo.
+
+The first step is setting the following property, [per the recommended setup](https://docs.expo.dev/guides/monorepos/):
 
 ```
-├── apps
-│   └── mobile
-│       ├── index.js ➡️ Entry point for the app
-│       ├── App.js ➡️ App root component
-│       ├── package.json ➡️ contains configuration required by expo-yarn-workspaces
-│       └── metro.config.js ➡️ required by expo-yarn-workspaces
-├── packages
-│   └── expo-custom
-│       └── src/index.tsx ➡️ exports a custom message which is imported and displayed in the app
-│       └── src/tsconfig.json ➡️ default TypeScript configuration for expo-module-scripts
-├── package.json ➡️ contains yarn commands to run applications
-└── babel.config.js ➡️ Babel config (should be using `babel-preset-expo`)
+config.resolver.disableHierarchicalLookup = true;
 ```
 
-## 📝 Notes
+This causes the following error upon build:
 
-This example uses the configuration described in the [Expo Monorepos Guide](https://docs.expo.dev/guides/monorepos/)
+### How to Reproduce
+
+1. install depedencies via `yarn`
+2. create builds of each package via `yarn workspaces run build`
+3. build and run the Android app via `expo run:android --variant release`
+
+## Problem
+
+_This provides more information about the issues we saw within our monorepo, not the current state of this minimal reproduction repo._
+
+Some back-end and front-end packages share transitive dependencies, but of different version numbers. While debugging, we were noticing that some transitive dependencies were resolving to the incorrect package versions.
+
+### Example
+
+We've had multiple packages with similar issues, but below is one including `ts-invariant`.
+
+`ts-invariant` is a dependency of both `apollo-server-testing`, used within a back-end micro service setup as a package in yarn workspaces, and `@apollo-client`, used within a front-end package.
+
+Output of `yarn why ts-invariant` showing different version numbers:
+
+```
+Found "ts-invariant@0.4.4"
+  info Has been hoisted to "ts-invariant"
+  info Reasons this module exists
+    - "workspace-aggregator-284b876a-59b2-4fd6-aff3-6d11ef55213d" depends on it
+    - Hoisted from "_project_#@some-package-scope#some-back-end-package#apollo-server-testing#apollo-server-core#graphql-tools#apollo-link#ts-invariant"
+    - Hoisted from "_project_#@some-package-scope#some-back-end-package#apollo-server-testing#apollo-server-core#graphql-tools#apollo-utilities#ts-invariant"
+  info Disk size without dependencies: "144KB"
+  info Disk size with unique dependencies: "232KB"
+  info Disk size with transitive dependencies: "232KB"
+  info Number of shared dependencies: 1
+  => Found "@apollo/client#ts-invariant@0.10.3"
+  info This module exists because "_project_#@some-package-scope#some-front-end-package#@apollo#client" depends on it.
+  info Disk size without dependencies: "80KB"
+  info Disk size with unique dependencies: "168KB"
+  info Disk size with transitive dependencies: "168KB"
+  info Number of shared dependencies: 1
+```
+
+Our hunch with transitive dependencies is based on this similar issue logged in the metro repository:
+https://github.com/facebook/metro/issues/737
+
+We did confirm we should have the [version of metro that includes a fix for this issue](https://github.com/facebook/metro/commit/9bbe219809c2bdfdb949e825817e2522e099ff9f), v0.67.0
+
+output of `yarn why metro`:
+
+```
+=> Found "metro@0.67.0"
+info Has been hoisted to "metro"
+info Reasons this module exists
+   - "workspace-aggregator-32fb1799-f438-49ae-8fc2-f9e3021fe501" depends on it
+   - Hoisted from "_project_#metro#metro-config#metro"
+   - Hoisted from "_project_#metro#metro-transform-worker#metro"
+   - Hoisted from "_project_#@some-package-scope#some-monorepo-app#react-native#@react-native-community#cli#@react-native-community#cli-plugin-metro#metro"
+   - Hoisted from "_project_#@some-package-scope#some-monorepo-app#react-native#@react-native-community#cli#@react-native-community#cli-plugin-metro#metro-config#metro"
+info Disk size without dependencies: "5.25MB"
+info Disk size with unique dependencies: "33.33MB"
+info Disk size with transitive dependencies: "74.79MB"
+info Number of shared dependencies: 291
+=> Found "metro-config#metro@0.71.3"
+info Reasons this module exists
+   - "_project_#metro-config" depends on it
+   - Hoisted from "_project_#metro-config#metro#metro-transform-worker#metro"
+info Disk size without dependencies: "1.46MB"
+info Disk size with unique dependencies: "30.3MB"
+info Disk size with transitive dependencies: "72.36MB"
+info Number of shared dependencies: 294
+✨  Done in 3.61s.
+```

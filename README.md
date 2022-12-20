@@ -32,15 +32,39 @@ config.resolver.disableHierarchicalLookup = true;
 
 This causes the following error upon build:
 
+```
+error Unable to resolve module ts-invariant/process from /monorepo-build-debug/node_modules/@apollo/client/utilities/globals/globals.cjs.native.js: ts-invariant/process could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+
+Error: Unable to resolve module ts-invariant/process from /monorepo-build-debug/node_modules/@apollo/client/utilities/globals/globals.cjs.native.js: ts-invariant/process could not be found within the project or in these directories:
+  4 |
+  node_modules
+  5 | var tsInvariant = require('ts-invariant');
+  ../../node_modules
+> 6 | var process$1 = require('ts-invariant/process');
+    |                          ^
+  4 |
+  7 | var graphql = require('graphql');
+  8 |
+  9 | function maybe(thunk) {.
+  5 | var tsInvariant = require('ts-invariant');
+> 6 | var process$1 = require('ts-invariant/process');
+    |                          ^
+  7 | var graphql = require('graphql');
+```
+
 ### How to Reproduce
 
 1. install depedencies via `yarn`
 2. create builds of each package via `yarn workspaces run build`
 3. build and run the Android app via `expo run:android --variant release`
+4. note that it fails with the error noted above
+5. remove/uncomment `config.resolver.disableHierarchicalLookup = true;` in `apps/mobile/metro.config.js`
+6. build and run the Android app via `expo run:android --variant release`
+7. note that it succeeds
 
 ## Problem
-
-_This provides more information about the issues we saw within our monorepo, not the current state of this minimal reproduction repo._
 
 Some back-end and front-end packages share transitive dependencies, but of different version numbers. While debugging, we were noticing that some transitive dependencies were resolving to the incorrect package versions.
 

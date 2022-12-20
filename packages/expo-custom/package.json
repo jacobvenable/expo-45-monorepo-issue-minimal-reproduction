@@ -18,6 +18,7 @@
     "preset": "expo-module-scripts"
   },
   "dependencies": {
+    "sanitize-html": "2.7.0"
   },
   "devDependencies": {
     "expo-module-scripts": "^2.0.0"
